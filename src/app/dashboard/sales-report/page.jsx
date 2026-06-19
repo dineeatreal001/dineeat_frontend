@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Sidebar from "@/components/Sidebar";
 import Navbar from "@/components/Navbar";
@@ -40,21 +40,28 @@ export default function SalesReportPage() {
   const [activeReport, setActiveReport] = useState("orders");
   const [storeId, setStoreId] = useState(null);
 
-  // Get storeId from localStorage
-  useState(() => {
-    const storeDataStr = localStorage.getItem('storeData');
-    if (storeDataStr) {
-      try {
-        const storeData = JSON.parse(storeDataStr);
-        const id = storeData.id || storeData._id;
-        if (id) setStoreId(id);
-      } catch (e) {
-        console.error("Error parsing storeData:", e);
+useEffect(() => {
+  const storeDataStr = localStorage.getItem("storeData");
+
+  if (storeDataStr) {
+    try {
+      const storeData = JSON.parse(storeDataStr);
+      const id = storeData.id || storeData._id;
+
+      if (id) {
+        setStoreId(id);
+        return;
       }
+    } catch (e) {
+      console.error("Error parsing storeData:", e);
     }
-    const directStoreId = localStorage.getItem('storeId');
-    if (directStoreId) setStoreId(directStoreId);
-  }, []);
+  }
+
+  const directStoreId = localStorage.getItem("storeId");
+  if (directStoreId) {
+    setStoreId(directStoreId);
+  }
+}, []);
 
   const renderReport = () => {
     switch (activeReport) {

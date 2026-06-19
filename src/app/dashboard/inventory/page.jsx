@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
@@ -18,7 +18,7 @@ const hotels = [
   { id: 4, name: "Sushi House", location: "Bangalore" },
 ];
 
-export default function InventoryPage() {
+function InventoryPageContent() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedHotel, setSelectedHotel] = useState("all");
   const searchParams = useSearchParams();
@@ -185,5 +185,13 @@ export default function InventoryPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function InventoryPage() {
+  return (
+    <Suspense fallback={<div>Loading inventory...</div>}>
+      <InventoryPageContent />
+    </Suspense>
   );
 }
