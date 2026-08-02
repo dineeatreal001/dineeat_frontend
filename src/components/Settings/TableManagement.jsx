@@ -31,63 +31,12 @@ const printerOptions = [
   { id: "no_printer", name: "No Printer", type: "none" },
 ];
 
-// Sample Halls Data (will be fetched from API later)
-const sampleHalls = [
-  {
-    id: "hall_1",
-    name: "Ground Floor",
-    description: "Main dining area with garden view",
-    printerId: "epson_tm20",
-    printerName: "Epson TM-T20",
-    printKOT: true,
-    printBill: true,
-    allowReservations: true,
-    allowWalkIn: true,
-    tables: [
-      { _id: "t1", name: "Table 1", capacity: 4, location: "Window Side", isActive: true },
-      { _id: "t2", name: "Table 2", capacity: 2, location: "Garden View", isActive: true },
-      { _id: "t3", name: "Table 3", capacity: 6, location: "VIP Area", isActive: true },
-      { _id: "t4", name: "Table 4", capacity: 4, location: "Near Bar", isActive: false },
-    ]
-  },
-  {
-    id: "hall_2",
-    name: "First Floor",
-    description: "Private party hall",
-    printerId: "star_tsp100",
-    printerName: "Star TSP100",
-    printKOT: true,
-    printBill: true,
-    allowReservations: true,
-    allowWalkIn: false,
-    tables: [
-      { _id: "t5", name: "Table 5", capacity: 8, location: "Private Room", isActive: true },
-      { _id: "t6", name: "Table 6", capacity: 6, location: "Balcony", isActive: true },
-    ]
-  },
-  {
-    id: "hall_3",
-    name: "Outdoor Terrace",
-    description: "Open air terrace seating",
-    printerId: "network_printer",
-    printerName: "Network Printer",
-    printKOT: false,
-    printBill: true,
-    allowReservations: true,
-    allowWalkIn: true,
-    tables: [
-      { _id: "t7", name: "Table 7", capacity: 4, location: "Terrace Left", isActive: true },
-      { _id: "t8", name: "Table 8", capacity: 4, location: "Terrace Right", isActive: true },
-      { _id: "t9", name: "Table 9", capacity: 2, location: "Corner", isActive: true },
-    ]
-  },
-];
-
 export default function TablesManagement({ storeId }) {
-  const [halls, setHalls] = useState(sampleHalls);
+  const [halls, setHalls] = useState([]);
   const [selectedHall, setSelectedHall] = useState(null);
-  const [loading, setLoading] = useState(false);
-  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
   // Hall Modal States
   const [showHallModal, setShowHallModal] = useState(false);
   const [editingHall, setEditingHall] = useState(null);
@@ -101,7 +50,7 @@ export default function TablesManagement({ storeId }) {
     allowReservations: true,
     allowWalkIn: true,
   });
-  
+
   // Table Modal States
   const [showTableModal, setShowTableModal] = useState(false);
   const [editingTable, setEditingTable] = useState(null);
@@ -117,116 +66,221 @@ export default function TablesManagement({ storeId }) {
   const [settingsHall, setSettingsHall] = useState(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const HALLS_API = `${API_URL}/api/halls`;
 
-  // Hall CRUD Operations
-  const createHall = () => {
+  // ─── Fetch halls on mount / when storeId changes ─────────────────────────
+  useEffect(() => {
+    if (storeId) fetchHalls();
+  }, [storeId]);
+
+  const fetchHalls = async () => {
+    try {
+      setLoading(true);
+      const { data } = await axios.get(`${HALLS_API}/${storeId}`);
+      if (data.success) {
+        setHalls(data.halls);
+        // keep selectedHall in sync with fresh data (if it still exists)
+        setSelectedHall((prev) => {
+          if (!prev) return prev;
+          const updated = data.halls.find((h) => h._id === prev._id);
+          return updated || null;
+        });
+      }
+    } catch (error) {
+      console.log(error);
+      alert(error?.response?.data?.message || "Failed to load halls");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Hall CRUD Operations ──────────────────────────────────────────────
+  const createHall = async () => {
     if (!hallFormData.name) {
       alert("Please enter hall name");
       return;
     }
 
-    const newHall = {
-      id: `hall_${Date.now()}`,
+    const payload = {
+      storeId,
       name: hallFormData.name,
       description: hallFormData.description,
       printerId: hallFormData.printerId,
-      printerName: printerOptions.find(p => p.id === hallFormData.printerId)?.name || "No Printer",
+      printerName:
+        printerOptions.find((p) => p.id === hallFormData.printerId)?.name ||
+        "No Printer",
       printKOT: hallFormData.printKOT,
       printBill: hallFormData.printBill,
       allowReservations: hallFormData.allowReservations,
       allowWalkIn: hallFormData.allowWalkIn,
-      tables: [],
     };
 
-    if (editingHall) {
-      setHalls(halls.map(hall => 
-        hall.id === editingHall.id ? { ...newHall, id: hall.id, tables: hall.tables } : hall
-      ));
-    } else {
-      setHalls([...halls, newHall]);
+    try {
+      setSaving(true);
+      if (editingHall) {
+        const { data } = await axios.put(
+          `${HALLS_API}/${editingHall._id}`,
+          payload
+        );
+        if (data.success) {
+          setHalls((prev) =>
+            prev.map((h) => (h._id === data.hall._id ? data.hall : h))
+          );
+          if (selectedHall?._id === data.hall._id) setSelectedHall(data.hall);
+        }
+      } else {
+        const { data } = await axios.post(`${HALLS_API}/create`, payload);
+        if (data.success) {
+          setHalls((prev) => [...prev, data.hall]);
+        }
+      }
+      closeHallModal();
+    } catch (error) {
+      console.log(error);
+      alert(error?.response?.data?.message || "Failed to save hall");
+    } finally {
+      setSaving(false);
     }
-    
-    closeHallModal();
   };
 
-  const updateHallSettings = () => {
+  const updateHallSettings = async () => {
     if (!settingsHall) return;
-    
-    setHalls(halls.map(hall => 
-      hall.id === settingsHall.id ? { ...settingsHall } : hall
-    ));
-    setShowHallSettingsModal(false);
-    setSettingsHall(null);
+
+    try {
+      setSaving(true);
+      const { data } = await axios.put(`${HALLS_API}/${settingsHall._id}`, {
+        printerId: settingsHall.printerId,
+        printerName: settingsHall.printerName,
+        printKOT: settingsHall.printKOT,
+        printBill: settingsHall.printBill,
+        allowReservations: settingsHall.allowReservations,
+        allowWalkIn: settingsHall.allowWalkIn,
+      });
+      if (data.success) {
+        setHalls((prev) =>
+          prev.map((h) => (h._id === data.hall._id ? data.hall : h))
+        );
+        if (selectedHall?._id === data.hall._id) setSelectedHall(data.hall);
+      }
+      setShowHallSettingsModal(false);
+      setSettingsHall(null);
+    } catch (error) {
+      console.log(error);
+      alert(error?.response?.data?.message || "Failed to update settings");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const deleteHall = (hallId) => {
-    const hall = halls.find(h => h.id === hallId);
+  const deleteHall = async (hallId) => {
+    const hall = halls.find((h) => h._id === hallId);
     if (hall.tables.length > 0) {
-      alert(`Cannot delete hall with ${hall.tables.length} tables. Please delete or move tables first.`);
+      alert(
+        `Cannot delete hall with ${hall.tables.length} tables. Please delete or move tables first.`
+      );
       return;
     }
-    
+
     if (confirm(`Are you sure you want to delete "${hall.name}" hall?`)) {
-      setHalls(halls.filter(hall => hall.id !== hallId));
-      if (selectedHall?.id === hallId) {
-        setSelectedHall(null);
+      try {
+        const { data } = await axios.delete(`${HALLS_API}/${hallId}`);
+        if (data.success) {
+          setHalls((prev) => prev.filter((h) => h._id !== hallId));
+          if (selectedHall?._id === hallId) {
+            setSelectedHall(null);
+          }
+        }
+      } catch (error) {
+        console.log(error);
+        alert(error?.response?.data?.message || "Failed to delete hall");
       }
     }
   };
 
-  // Table CRUD Operations
-  const createTable = () => {
+  // ─── Table CRUD Operations ─────────────────────────────────────────────
+  const createTable = async () => {
     if (!tableFormData.name) {
       alert("Please enter table name");
       return;
     }
+    if (!selectedHall) return;
 
-    const newTable = {
-      _id: `t_${Date.now()}`,
+    const payload = {
       name: tableFormData.name,
       capacity: tableFormData.capacity,
       location: tableFormData.location,
       isActive: tableFormData.isActive,
     };
 
-    if (editingTable) {
-      setHalls(halls.map(hall => 
-        hall.id === selectedHall.id 
-          ? { ...hall, tables: hall.tables.map(t => t._id === editingTable._id ? { ...newTable, _id: t._id } : t) }
-          : hall
-      ));
-    } else {
-      setHalls(halls.map(hall => 
-        hall.id === selectedHall.id 
-          ? { ...hall, tables: [...hall.tables, newTable] }
-          : hall
-      ));
+    try {
+      setSaving(true);
+      let data;
+      if (editingTable) {
+        ({ data } = await axios.put(
+          `${HALLS_API}/${selectedHall._id}/tables/${editingTable._id}`,
+          payload
+        ));
+      } else {
+        ({ data } = await axios.post(
+          `${HALLS_API}/${selectedHall._id}/tables`,
+          payload
+        ));
+      }
+
+      if (data.success) {
+        setHalls((prev) =>
+          prev.map((h) => (h._id === data.hall._id ? data.hall : h))
+        );
+        setSelectedHall(data.hall);
+      }
+      closeTableModal();
+    } catch (error) {
+      console.log(error);
+      alert(error?.response?.data?.message || "Failed to save table");
+    } finally {
+      setSaving(false);
     }
-    
-    closeTableModal();
   };
 
-  const deleteTable = (tableId) => {
+  const deleteTable = async (tableId) => {
+    if (!selectedHall) return;
     if (confirm("Are you sure you want to delete this table?")) {
-      setHalls(halls.map(hall => 
-        hall.id === selectedHall.id 
-          ? { ...hall, tables: hall.tables.filter(t => t._id !== tableId) }
-          : hall
-      ));
+      try {
+        const { data } = await axios.delete(
+          `${HALLS_API}/${selectedHall._id}/tables/${tableId}`
+        );
+        if (data.success) {
+          setHalls((prev) =>
+            prev.map((h) => (h._id === data.hall._id ? data.hall : h))
+          );
+          setSelectedHall(data.hall);
+        }
+      } catch (error) {
+        console.log(error);
+        alert(error?.response?.data?.message || "Failed to delete table");
+      }
     }
   };
 
-  const toggleTableStatus = (tableId, currentStatus) => {
-    setHalls(halls.map(hall => 
-      hall.id === selectedHall.id 
-        ? { ...hall, tables: hall.tables.map(t => 
-            t._id === tableId ? { ...t, isActive: !currentStatus } : t
-          )}
-        : hall
-    ));
+  const toggleTableStatus = async (tableId) => {
+    if (!selectedHall) return;
+    try {
+      const { data } = await axios.put(
+        `${HALLS_API}/${selectedHall._id}/tables/${tableId}/toggle`
+      );
+      if (data.success) {
+        setHalls((prev) =>
+          prev.map((h) => (h._id === data.hall._id ? data.hall : h))
+        );
+        setSelectedHall(data.hall);
+      }
+    } catch (error) {
+      console.log(error);
+      alert(error?.response?.data?.message || "Failed to update table status");
+    }
   };
 
-  // Modal Handlers
+  // ─── Modal Handlers ─────────────────────────────────────────────────────
   const openHallModal = (hall = null) => {
     if (hall) {
       setEditingHall(hall);
@@ -306,13 +360,13 @@ export default function TablesManagement({ storeId }) {
   };
 
   const updateSettingsField = (field, value) => {
-    setSettingsHall(prev => ({ ...prev, [field]: value }));
+    setSettingsHall((prev) => ({ ...prev, [field]: value }));
   };
 
   // Stats for selected hall
   const totalTables = selectedHall?.tables.length || 0;
-  const activeTables = selectedHall?.tables.filter(t => t.isActive).length || 0;
-  const inactiveTables = selectedHall?.tables.filter(t => !t.isActive).length || 0;
+  const activeTables = selectedHall?.tables.filter((t) => t.isActive).length || 0;
+  const inactiveTables = selectedHall?.tables.filter((t) => !t.isActive).length || 0;
 
   return (
     <>
@@ -334,8 +388,11 @@ export default function TablesManagement({ storeId }) {
           </div>
         </div>
 
-        {/* Hall Selection Section */}
-        {halls.length === 0 ? (
+        {loading ? (
+          <div className="text-center py-12 sm:py-16">
+            <p className="text-gray-400 text-sm font-medium">Loading halls...</p>
+          </div>
+        ) : halls.length === 0 ? (
           <div className="text-center py-12 sm:py-16">
             <div className="text-5xl sm:text-6xl mb-3">🏛️</div>
             <p className="text-gray-400 text-sm font-medium">No halls added yet</p>
@@ -357,12 +414,12 @@ export default function TablesManagement({ storeId }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {halls.map((hall) => (
                   <motion.div
-                    key={hall.id}
+                    key={hall._id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     onClick={() => setSelectedHall(hall)}
                     className={`rounded-xl p-3 cursor-pointer transition-all border-2 ${
-                      selectedHall?.id === hall.id
+                      selectedHall?._id === hall._id
                         ? "border-[#a3e635] bg-[#f9fff0] shadow-[0_4px_0_#6aaa00]"
                         : "border-gray-200 bg-white shadow-[0_4px_0_#e5e7eb] hover:border-gray-300"
                     }`}
@@ -399,7 +456,7 @@ export default function TablesManagement({ storeId }) {
                           <Edit2 size={12} />
                         </button>
                         <button
-                          onClick={() => deleteHall(hall.id)}
+                          onClick={() => deleteHall(hall._id)}
                           className="p-1.5 text-red-600 bg-red-50 rounded-lg shadow-[0_1px_0_#fca5a5] active:translate-y-[1px] transition-all"
                         >
                           <Trash2 size={12} />
@@ -522,7 +579,7 @@ export default function TablesManagement({ storeId }) {
                               <span className="text-[10px] sm:text-xs text-gray-500">guests</span>
                             </div>
                             <button
-                              onClick={() => toggleTableStatus(table._id, table.isActive)}
+                              onClick={() => toggleTableStatus(table._id)}
                               className={`px-2 py-1 sm:px-3 rounded-xl text-[10px] sm:text-xs font-bold transition-all ${
                                 table.isActive
                                   ? "bg-emerald-100 text-emerald-700 shadow-[0_1px_0_#6ee7b7] active:translate-y-[1px]"
@@ -660,7 +717,8 @@ export default function TablesManagement({ storeId }) {
                 <div className="p-4 sm:p-6 border-t-2 border-gray-100 flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={createHall}
-                    className={clay.btn.primary + " flex-1 py-2.5 sm:py-3 text-xs sm:text-sm flex items-center justify-center gap-1.5"}
+                    disabled={saving}
+                    className={clay.btn.primary + " flex-1 py-2.5 sm:py-3 text-xs sm:text-sm flex items-center justify-center gap-1.5 disabled:opacity-60"}
                   >
                     <Check size={14} className="sm:w-4 sm:h-4" />
                     {editingHall ? "Update Hall" : "Create Hall"}
@@ -763,7 +821,8 @@ export default function TablesManagement({ storeId }) {
                 <div className="p-4 sm:p-6 border-t-2 border-gray-100 flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={createTable}
-                    className={clay.btn.primary + " flex-1 py-2.5 sm:py-3 text-xs sm:text-sm flex items-center justify-center gap-1.5"}
+                    disabled={saving}
+                    className={clay.btn.primary + " flex-1 py-2.5 sm:py-3 text-xs sm:text-sm flex items-center justify-center gap-1.5 disabled:opacity-60"}
                   >
                     <Check size={14} className="sm:w-4 sm:h-4" />
                     {editingTable ? "Update Table" : "Create Table"}
@@ -876,7 +935,8 @@ export default function TablesManagement({ storeId }) {
                 <div className="p-4 sm:p-6 border-t-2 border-gray-100 flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={updateHallSettings}
-                    className={clay.btn.primary + " flex-1 py-2.5 sm:py-3 text-xs sm:text-sm"}
+                    disabled={saving}
+                    className={clay.btn.primary + " flex-1 py-2.5 sm:py-3 text-xs sm:text-sm disabled:opacity-60"}
                   >
                     Save Settings
                   </button>

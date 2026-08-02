@@ -1,8 +1,33 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Edit2, Trash2, X, Check, Search, Barcode, Upload, Download, Printer, FileText, AlertCircle } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Check, Search, Barcode, Upload, Download, Printer, FileText, AlertCircle, Layers } from "lucide-react";
 import axios from "axios";
+
+// ─── Clay Design Tokens ────────────────────────────────────────────────────────
+const clay = {
+  btn: {
+    primary:
+      "bg-[#a3e635] text-gray-900 font-semibold rounded-2xl shadow-[0_6px_0_#6aaa00,0_8px_16px_rgba(163,230,53,0.35)] hover:shadow-[0_3px_0_#6aaa00,0_4px_8px_rgba(163,230,53,0.35)] hover:translate-y-[3px] active:shadow-none active:translate-y-[6px] transition-all duration-150",
+    secondary:
+      "bg-white text-gray-700 font-semibold rounded-2xl border border-gray-200 shadow-[0_6px_0_#d1d5db,0_8px_16px_rgba(0,0,0,0.08)] hover:shadow-[0_3px_0_#d1d5db,0_4px_8px_rgba(0,0,0,0.08)] hover:translate-y-[3px] active:shadow-none active:translate-y-[6px] transition-all duration-150",
+    ghost:
+      "bg-gray-100 text-gray-600 font-semibold rounded-2xl shadow-[0_4px_0_#9ca3af,0_6px_12px_rgba(0,0,0,0.06)] hover:shadow-[0_2px_0_#9ca3af,0_3px_6px_rgba(0,0,0,0.06)] hover:translate-y-[2px] active:shadow-none active:translate-y-[4px] transition-all duration-150",
+    purple:
+      "bg-purple-500 text-white font-semibold rounded-2xl shadow-[0_6px_0_#6d28d9,0_8px_16px_rgba(168,85,247,0.3)] hover:shadow-[0_3px_0_#6d28d9,0_4px_8px_rgba(168,85,247,0.3)] hover:translate-y-[3px] active:shadow-none active:translate-y-[6px] transition-all duration-150",
+    blue:
+      "bg-blue-500 text-white font-semibold rounded-2xl shadow-[0_6px_0_#1d4ed8,0_8px_16px_rgba(59,130,246,0.3)] hover:shadow-[0_3px_0_#1d4ed8,0_4px_8px_rgba(59,130,246,0.3)] hover:translate-y-[3px] active:shadow-none active:translate-y-[6px] transition-all duration-150",
+    green:
+      "bg-emerald-500 text-white font-semibold rounded-2xl shadow-[0_6px_0_#047857,0_8px_16px_rgba(16,185,129,0.3)] hover:shadow-[0_3px_0_#047857,0_4px_8px_rgba(16,185,129,0.3)] hover:translate-y-[3px] active:shadow-none active:translate-y-[6px] transition-all duration-150",
+  },
+  card: "bg-white rounded-2xl sm:rounded-3xl shadow-[0_8px_0_#e5e7eb,0_12px_32px_rgba(0,0,0,0.08)] border border-white/80",
+  input:
+    "w-full px-3 sm:px-3.5 py-2 sm:py-2.5 text-sm sm:text-base bg-gray-50 border-2 border-gray-200 rounded-xl sm:rounded-2xl focus:outline-none focus:border-[#a3e635] focus:bg-white focus:shadow-[0_0_0_4px_rgba(163,230,53,0.15)] transition-all placeholder:text-gray-400",
+  modal: "bg-white/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-[0_16px_0_#d1d5db,0_24px_48px_rgba(0,0,0,0.15)] border border-white",
+};
+
+// JsBarcode CDN — loaded lazily into print windows so labels are real, scannable barcodes
+const JSBARCODE_CDN = "https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js";
 
 export default function BarcodeManagement({ storeId }) {
   const [barcodes, setBarcodes] = useState([]);
@@ -193,10 +218,10 @@ export default function BarcodeManagement({ storeId }) {
   const parseCSV = (csvText) => {
     const lines = csvText.trim().split('\n');
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-    
+
     const requiredHeaders = ['barcode', 'itemname', 'price'];
     const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
-    
+
     if (missingHeaders.length > 0) {
       setBulkErrors([`Missing required columns: ${missingHeaders.join(', ')}`]);
       return null;
@@ -208,7 +233,7 @@ export default function BarcodeManagement({ storeId }) {
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(',').map(v => v.trim());
       const item = {};
-      
+
       headers.forEach((header, index) => {
         item[header] = values[index] || '';
       });
@@ -235,7 +260,7 @@ export default function BarcodeManagement({ storeId }) {
       }
 
       // Find matching menu item
-      const menuItem = menuItems.find(mi => 
+      const menuItem = menuItems.find(mi =>
         mi.name.toLowerCase() === item.itemname.toLowerCase()
       );
 
@@ -313,7 +338,7 @@ export default function BarcodeManagement({ storeId }) {
       "8901234567891,Paneer Tikka,320,active,Spicy",
       "8901234567892,Garlic Naan,40,active,Best seller",
     ];
-    
+
     const csvContent = [headers.join(","), ...sampleData].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -346,63 +371,87 @@ export default function BarcodeManagement({ storeId }) {
     URL.revokeObjectURL(url);
   };
 
-  // Print barcode labels
+  // ─── Print a single barcode label ──────────────────────────────────────
+  // Renders a real, scannable CODE128 barcode (via JsBarcode) sized for a
+  // standard 50mm x 30mm thermal/adhesive label.
   const printBarcodeLabel = (barcode) => {
-    const printWindow = window.open('', '_blank', 'width=400,height=300');
+    const printWindow = window.open('', '_blank', 'width=420,height=340');
     printWindow.document.write(`
       <html>
         <head>
-          <title>Barcode Label</title>
+          <title>Barcode Label - ${barcode.itemName}</title>
+          <script src="${JSBARCODE_CDN}"></script>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              display: flex;
-              justify-content: center;
-              align-items: center;
-              height: 100vh;
+            @page { size: 50mm 30mm; margin: 0; }
+            * { box-sizing: border-box; }
+            html, body {
               margin: 0;
-              background: white;
+              padding: 0;
+              width: 50mm;
+              height: 30mm;
+              font-family: Arial, Helvetica, sans-serif;
+              background: #fff;
             }
             .label {
+              width: 50mm;
+              height: 30mm;
+              padding: 2mm;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
               text-align: center;
-              padding: 20px;
-              border: 1px solid #ccc;
-              border-radius: 8px;
-              width: 300px;
-            }
-            .barcode {
-              font-family: 'Courier New', monospace;
-              font-size: 32px;
-              letter-spacing: 2px;
-              margin: 20px 0;
-              font-weight: bold;
             }
             .item-name {
-              font-size: 16px;
-              font-weight: bold;
-              margin: 10px 0;
+              font-size: 8px;
+              font-weight: 700;
+              max-width: 46mm;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              margin-bottom: 1mm;
+            }
+            svg {
+              width: 44mm;
+              height: 15mm;
             }
             .price {
-              font-size: 14px;
-              color: #4ade80;
-              font-weight: bold;
+              font-size: 9px;
+              font-weight: 700;
+              margin-top: 1mm;
             }
           </style>
         </head>
         <body>
           <div class="label">
             <div class="item-name">${barcode.itemName}</div>
-            <div class="barcode">${barcode.barcodeNumber}</div>
+            <svg id="barcode"></svg>
             <div class="price">₹${barcode.price}</div>
           </div>
+          <script>
+            window.onload = function () {
+              try {
+                JsBarcode("#barcode", "${barcode.barcodeNumber}", {
+                  format: "CODE128",
+                  width: 1.6,
+                  height: 42,
+                  displayValue: true,
+                  fontSize: 10,
+                  margin: 0,
+                });
+              } catch (e) {}
+              setTimeout(function () { window.print(); }, 300);
+            };
+          </script>
         </body>
       </html>
     `);
     printWindow.document.close();
-    printWindow.print();
   };
 
-  // Print multiple barcode labels
+  // ─── Print all active barcodes as a sheet of labels ───────────────────
+  // 3-column grid of 50mm x 30mm labels on an A4 sheet, each with a real
+  // scannable CODE128 barcode.
   const printMultipleLabels = () => {
     const selectedBarcodes = barcodes.filter(b => b.status === "active");
     if (selectedBarcodes.length === 0) {
@@ -410,76 +459,100 @@ export default function BarcodeManagement({ storeId }) {
       return;
     }
 
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    let htmlContent = `
+    let labelsHtml = "";
+    let barcodeScripts = "";
+
+    selectedBarcodes.forEach((barcode, idx) => {
+      labelsHtml += `
+        <div class="label">
+          <div class="item-name">${barcode.itemName}</div>
+          <svg id="barcode-${idx}"></svg>
+          <div class="price">₹${barcode.price}</div>
+        </div>
+      `;
+      barcodeScripts += `
+        try {
+          JsBarcode("#barcode-${idx}", "${barcode.barcodeNumber}", {
+            format: "CODE128",
+            width: 1.3,
+            height: 36,
+            displayValue: true,
+            fontSize: 9,
+            margin: 0,
+          });
+        } catch (e) {}
+      `;
+    });
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    printWindow.document.write(`
       <html>
         <head>
           <title>Barcode Labels</title>
+          <script src="${JSBARCODE_CDN}"></script>
           <style>
+            @page { size: A4; margin: 10mm; }
+            * { box-sizing: border-box; }
             body {
-              font-family: Arial, sans-serif;
-              padding: 20px;
-              background: white;
+              font-family: Arial, Helvetica, sans-serif;
+              margin: 0;
+              padding: 0;
+              background: #fff;
             }
             .labels-container {
               display: grid;
-              grid-template-columns: repeat(2, 1fr);
-              gap: 20px;
+              grid-template-columns: repeat(3, 50mm);
+              gap: 4mm;
             }
             .label {
+              width: 50mm;
+              height: 30mm;
+              border: 1px dashed #ccc;
+              padding: 2mm;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
               text-align: center;
-              padding: 20px;
-              border: 1px solid #ccc;
-              border-radius: 8px;
               page-break-inside: avoid;
             }
-            .barcode {
-              font-family: 'Courier New', monospace;
-              font-size: 24px;
-              letter-spacing: 2px;
-              margin: 15px 0;
-              font-weight: bold;
-            }
             .item-name {
-              font-size: 14px;
-              font-weight: bold;
-              margin: 10px 0;
+              font-size: 7px;
+              font-weight: 700;
+              max-width: 46mm;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              margin-bottom: 1mm;
+            }
+            svg {
+              width: 44mm;
+              height: 13mm;
             }
             .price {
-              font-size: 12px;
-              color: #4ade80;
-              font-weight: bold;
+              font-size: 8px;
+              font-weight: 700;
+              margin-top: 1mm;
             }
             @media print {
-              .label {
-                break-inside: avoid;
-              }
+              .label { border: 1px dashed #ccc; }
             }
           </style>
         </head>
         <body>
           <div class="labels-container">
-    `;
-
-    selectedBarcodes.forEach(barcode => {
-      htmlContent += `
-        <div class="label">
-          <div class="item-name">${barcode.itemName}</div>
-          <div class="barcode">${barcode.barcodeNumber}</div>
-          <div class="price">₹${barcode.price}</div>
-        </div>
-      `;
-    });
-
-    htmlContent += `
+            ${labelsHtml}
           </div>
+          <script>
+            window.onload = function () {
+              ${barcodeScripts}
+              setTimeout(function () { window.print(); }, 400);
+            };
+          </script>
         </body>
       </html>
-    `;
-
-    printWindow.document.write(htmlContent);
+    `);
     printWindow.document.close();
-    printWindow.print();
   };
 
   const openModal = (barcode = null) => {
@@ -552,7 +625,7 @@ export default function BarcodeManagement({ storeId }) {
   };
 
   const filteredBarcodes = barcodes.filter(b => {
-    const matchesSearch = b.barcodeNumber.includes(searchTerm) || 
+    const matchesSearch = b.barcodeNumber.includes(searchTerm) ||
                          b.itemName.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
@@ -562,55 +635,63 @@ export default function BarcodeManagement({ storeId }) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading barcodes...</p>
+      <div className={clay.card + " p-8 text-center"}>
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-[#a3e635] mx-auto mb-4"></div>
+        <p className="text-gray-500 text-sm font-medium">Loading barcodes...</p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className={clay.card + " overflow-hidden"}>
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100">
-          <div className="flex justify-between items-center mb-4">
+        <div className="px-4 py-3 sm:px-6 sm:py-5 border-b-2 border-gray-100">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Barcode Management</h2>
-              <p className="text-sm text-gray-500 mt-1">Manage barcodes for direct billing and quick item lookup</p>
+              <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">Barcode Management</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Manage barcodes for direct billing and quick item lookup</p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+              <button
+                onClick={printMultipleLabels}
+                className={clay.btn.green + " px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2"}
+                title="Print all active barcodes as a label sheet"
+              >
+                <Layers size={14} className="sm:w-4 sm:h-4" />
+                <span>Print All Barcodes</span>
+              </button>
               <button
                 onClick={openBulkModal}
-                className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition flex items-center gap-2"
+                className={clay.btn.purple + " px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2"}
               >
-                <Upload size={16} />
-                Bulk Import
+                <Upload size={14} className="sm:w-4 sm:h-4" />
+                <span>Bulk Import</span>
               </button>
               <button
                 onClick={exportToCSV}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center gap-2"
+                className={clay.btn.blue + " px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2"}
               >
-                <Download size={16} />
-                Export CSV
+                <Download size={14} className="sm:w-4 sm:h-4" />
+                <span>Export CSV</span>
               </button>
               <button
                 onClick={() => openModal()}
-                className="bg-[#a3e635] text-gray-900 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#bef264] transition flex items-center gap-2"
+                className={clay.btn.primary + " px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2"}
               >
-                <Plus size={16} />
-                Add Barcode
+                <Plus size={14} className="sm:w-4 sm:h-4" />
+                <span>Add Barcode</span>
               </button>
             </div>
           </div>
 
           {/* Barcode Scanner Section */}
-          <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <Barcode size={16} />
+          <div className="mt-4 p-3 sm:p-4 bg-[#f9fff0] rounded-2xl border-2 border-gray-100">
+            <h3 className="text-xs sm:text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+              <Barcode size={16} className="text-[#6aaa00]" />
               Barcode Scanner
             </h3>
-            <form onSubmit={handleScan} className="flex gap-3">
+            <form onSubmit={handleScan} className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <div className="flex-1 relative">
                 <Barcode size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
@@ -619,82 +700,82 @@ export default function BarcodeManagement({ storeId }) {
                   value={scanInput}
                   onChange={(e) => setScanInput(e.target.value)}
                   placeholder="Scan or enter barcode number..."
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#a3e635] transition font-mono"
+                  className={clay.input + " pl-9 font-mono text-sm"}
                   autoFocus
                 />
               </div>
               <button
                 type="submit"
-                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition flex items-center gap-2"
+                className={clay.btn.primary + " px-4 py-2 text-xs sm:text-sm flex items-center justify-center gap-2"}
               >
                 <Barcode size={16} />
                 Scan
               </button>
             </form>
             {scanMessage && (
-              <div className={`mt-3 text-sm ${scanMessage.includes("✅") ? "text-green-600" : "text-red-600"}`}>
+              <div className={`mt-3 text-xs sm:text-sm font-semibold ${scanMessage.includes("✅") ? "text-emerald-600" : "text-red-600"}`}>
                 {scanMessage}
               </div>
             )}
           </div>
 
           {/* Search */}
-          <div className="relative">
+          <div className="relative mt-4">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Search by barcode number or item name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-[#a3e635] transition"
+              className={clay.input + " pl-9 text-sm"}
             />
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 p-6 bg-gray-50 border-b border-gray-100">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-gray-900">{barcodes.length}</p>
-            <p className="text-xs text-gray-500 mt-1">Total Barcodes</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 p-3 sm:p-6 bg-gray-50 border-b border-gray-100">
+          <div className="text-center bg-white rounded-2xl p-3 shadow-[0_4px_0_#e5e7eb]">
+            <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">{barcodes.length}</p>
+            <p className="text-[10px] sm:text-xs text-gray-400 font-semibold uppercase tracking-wider mt-0.5">Total</p>
           </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-green-600">{activeBarcodes}</p>
-            <p className="text-xs text-gray-500 mt-1">Active</p>
+          <div className="text-center bg-white rounded-2xl p-3 shadow-[0_4px_0_#a7f3d0]">
+            <p className="text-lg sm:text-xl md:text-2xl font-bold text-emerald-600">{activeBarcodes}</p>
+            <p className="text-[10px] sm:text-xs text-gray-400 font-semibold uppercase tracking-wider mt-0.5">Active</p>
           </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-gray-400">{inactiveBarcodes}</p>
-            <p className="text-xs text-gray-500 mt-1">Inactive</p>
+          <div className="text-center bg-white rounded-2xl p-3 shadow-[0_4px_0_#e5e7eb]">
+            <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-400">{inactiveBarcodes}</p>
+            <p className="text-[10px] sm:text-xs text-gray-400 font-semibold uppercase tracking-wider mt-0.5">Inactive</p>
           </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-purple-600">{menuItems.length}</p>
-            <p className="text-xs text-gray-500 mt-1">Linked Items</p>
+          <div className="text-center bg-white rounded-2xl p-3 shadow-[0_4px_0_#e9d5ff]">
+            <p className="text-lg sm:text-xl md:text-2xl font-bold text-purple-600">{menuItems.length}</p>
+            <p className="text-[10px] sm:text-xs text-gray-400 font-semibold uppercase tracking-wider mt-0.5">Linked Items</p>
           </div>
         </div>
 
         {/* Barcodes Table */}
-        <div className="p-6">
+        <div className="p-3 sm:p-6">
           {filteredBarcodes.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-3">🏷️</div>
-              <p className="text-gray-500 text-sm">No barcodes found</p>
+            <div className="text-center py-10 sm:py-12">
+              <div className="text-5xl sm:text-6xl mb-3">🏷️</div>
+              <p className="text-gray-400 text-sm font-medium">No barcodes found</p>
               <button
                 onClick={() => openModal()}
-                className="mt-4 text-[#a3e635] hover:text-[#bef264] text-sm font-medium"
+                className="mt-4 text-[#a3e635] hover:text-[#84cc16] text-sm font-semibold transition"
               >
                 + Add your first barcode
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-2xl border-2 border-gray-100">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr className="text-xs text-gray-500">
-                    <th className="px-4 py-3 text-left font-semibold">Barcode Number</th>
-                    <th className="px-4 py-3 text-left font-semibold">Item Name</th>
-                    <th className="px-4 py-3 text-left font-semibold">Price</th>
-                    <th className="px-4 py-3 text-left font-semibold">Status</th>
-                    <th className="px-4 py-3 text-left font-semibold">Created</th>
-                    <th className="px-4 py-3 text-left font-semibold">Actions</th>
+                <thead className="bg-gray-50 border-b-2 border-gray-100">
+                  <tr className="text-[10px] sm:text-xs text-gray-500">
+                    <th className="px-3 sm:px-4 py-3 text-left font-bold uppercase tracking-wide">Barcode Number</th>
+                    <th className="px-3 sm:px-4 py-3 text-left font-bold uppercase tracking-wide">Item Name</th>
+                    <th className="px-3 sm:px-4 py-3 text-left font-bold uppercase tracking-wide">Price</th>
+                    <th className="px-3 sm:px-4 py-3 text-left font-bold uppercase tracking-wide">Status</th>
+                    <th className="px-3 sm:px-4 py-3 text-left font-bold uppercase tracking-wide">Created</th>
+                    <th className="px-3 sm:px-4 py-3 text-left font-bold uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -703,61 +784,61 @@ export default function BarcodeManagement({ storeId }) {
                       key={barcode._id}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ delay: idx * 0.03 }}
-                      className="hover:bg-gray-50 transition"
+                      transition={{ delay: Math.min(idx * 0.03, 0.3) }}
+                      className="hover:bg-[#f9fff0] transition"
                     >
-                      <td className="px-4 py-3">
-                        <code className="text-sm font-mono font-semibold text-gray-900">{barcode.barcodeNumber}</code>
+                      <td className="px-3 sm:px-4 py-3">
+                        <code className="text-xs sm:text-sm font-mono font-semibold text-gray-900">{barcode.barcodeNumber}</code>
                        </td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-gray-900">{barcode.itemName}</p>
+                      <td className="px-3 sm:px-4 py-3">
+                        <p className="text-xs sm:text-sm font-medium text-gray-900">{barcode.itemName}</p>
                        </td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-bold text-green-600">₹{barcode.price}</p>
+                      <td className="px-3 sm:px-4 py-3">
+                        <p className="text-xs sm:text-sm font-bold text-emerald-600">₹{barcode.price}</p>
                        </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
+                      <td className="px-3 sm:px-4 py-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded-xl text-[10px] sm:text-xs font-bold ${
                           barcode.status === "active"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-600"
+                            ? "bg-emerald-100 text-emerald-700 shadow-[0_1px_0_#6ee7b7]"
+                            : "bg-gray-100 text-gray-500 shadow-[0_1px_0_#d1d5db]"
                         }`}>
                           {barcode.status}
                         </span>
                         </td>
-                      <td className="px-4 py-3">
-                        <p className="text-xs text-gray-400">
+                      <td className="px-3 sm:px-4 py-3">
+                        <p className="text-[10px] sm:text-xs text-gray-400">
                           {new Date(barcode.createdAt).toLocaleDateString()}
                         </p>
                         </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 sm:px-4 py-3">
                         <div className="flex gap-1">
                           <button
                             onClick={() => printBarcodeLabel(barcode)}
-                            className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                            className="p-1.5 text-purple-600 bg-purple-50 rounded-xl hover:bg-purple-100 transition shadow-[0_1px_0_#d8b4fe] active:translate-y-[1px]"
                             title="Print Label"
                           >
-                            <Printer size={14} />
+                            <Printer size={12} className="sm:w-3.5 sm:h-3.5" />
                           </button>
                           <button
                             onClick={() => openModal(barcode)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            className="p-1.5 text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-100 transition shadow-[0_1px_0_#93c5fd] active:translate-y-[1px]"
                             title="Edit"
                           >
-                            <Edit2 size={14} />
+                            <Edit2 size={12} className="sm:w-3.5 sm:h-3.5" />
                           </button>
                           <button
                             onClick={() => deleteBarcode(barcode._id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            className="p-1.5 text-red-600 bg-red-50 rounded-xl hover:bg-red-100 transition shadow-[0_1px_0_#fca5a5] active:translate-y-[1px]"
                             title="Delete"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" />
                           </button>
                           <button
                             onClick={() => toggleBarcodeStatus(barcode)}
-                            className={`px-2 py-1 rounded-lg text-xs font-medium transition ${
+                            className={`px-2 py-1 rounded-xl text-[10px] sm:text-xs font-bold transition-all ${
                               barcode.status === "active"
-                                ? "bg-green-100 text-green-700 hover:bg-green-200"
-                                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                ? "bg-emerald-100 text-emerald-700 shadow-[0_1px_0_#6ee7b7] active:translate-y-[1px]"
+                                : "bg-gray-100 text-gray-500 shadow-[0_1px_0_#d1d5db] active:translate-y-[1px]"
                             }`}
                           >
                             {barcode.status === "active" ? "Active" : "Inactive"}
@@ -780,115 +861,118 @@ export default function BarcodeManagement({ storeId }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-sm overflow-y-auto"
             onClick={closeModal}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl max-w-md w-full"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              className="w-full max-w-[calc(100%-1.5rem)] sm:max-w-md mx-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    {editingBarcode ? "Edit Barcode" : "Add New Barcode"}
-                  </h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {editingBarcode ? "Update barcode information" : "Create a new barcode for quick billing"}
-                  </p>
-                </div>
-                <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Select Menu Item *</label>
-                  <select
-                    value={formData.itemId}
-                    onChange={(e) => handleItemSelect(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#a3e635] transition"
-                  >
-                    <option value="">Select an item</option>
-                    {menuItems.map(item => (
-                      <option key={item._id} value={item._id}>
-                        {item.name} - ₹{item.price}
-                      </option>
-                    ))}
-                  </select>
+              <div className={clay.modal + " overflow-hidden"}>
+                <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 truncate">
+                      {editingBarcode ? "Edit Barcode" : "Add New Barcode"}
+                    </h2>
+                    <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 truncate">
+                      {editingBarcode ? "Update barcode information" : "Create a new barcode for quick billing"}
+                    </p>
+                  </div>
+                  <button onClick={closeModal} className="bg-gray-100 text-gray-600 rounded-xl w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shadow-[0_2px_0_#d1d5db] active:translate-y-[1px] transition-all flex-shrink-0">
+                    <X size={14} className="sm:w-4 sm:h-4" />
+                  </button>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Barcode Number *</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={formData.barcodeNumber}
-                      onChange={(e) => setFormData({ ...formData, barcodeNumber: e.target.value })}
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#a3e635] transition font-mono"
-                      placeholder="Enter barcode number"
-                    />
-                    <button
-                      type="button"
-                      onClick={generateBarcodeNumber}
-                      className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
+                <div className="p-4 sm:p-6 space-y-3 sm:space-y-4 max-h-[60vh] overflow-y-auto">
+                  <div>
+                    <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Select Menu Item *</label>
+                    <select
+                      value={formData.itemId}
+                      onChange={(e) => handleItemSelect(e.target.value)}
+                      className={clay.input + " text-sm"}
                     >
-                      Generate
-                    </button>
+                      <option value="">Select an item</option>
+                      {menuItems.map(item => (
+                        <option key={item._id} value={item._id}>
+                          {item.name} - ₹{item.price}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Unique barcode number for this item</p>
+
+                  <div>
+                    <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Barcode Number *</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={formData.barcodeNumber}
+                        onChange={(e) => setFormData({ ...formData, barcodeNumber: e.target.value })}
+                        className={clay.input + " flex-1 font-mono text-sm"}
+                        placeholder="Enter barcode number"
+                      />
+                      <button
+                        type="button"
+                        onClick={generateBarcodeNumber}
+                        className={clay.btn.ghost + " px-3 py-2 text-xs sm:text-sm"}
+                      >
+                        Generate
+                      </button>
+                    </div>
+                    <p className="text-[10px] sm:text-xs text-gray-400 mt-1">Unique barcode number for this item</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className={clay.input + " text-sm"}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Notes (Optional)</label>
+                    <textarea
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      rows={3}
+                      className={clay.input + " text-sm"}
+                      placeholder="Additional notes about this barcode..."
+                    />
+                  </div>
+
+                  {formData.itemId && (
+                    <div className="bg-gray-50 rounded-2xl p-3">
+                      <p className="text-[10px] sm:text-xs text-gray-400">Selected Item:</p>
+                      <p className="text-sm font-bold text-gray-900">{formData.itemName}</p>
+                      <p className="text-sm font-bold text-emerald-600">₹{formData.price}</p>
+                    </div>
+                  )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#a3e635] transition"
+                <div className="p-4 sm:p-6 border-t-2 border-gray-100 flex flex-col sm:flex-row gap-2 sm:gap-3">
+                  <button
+                    onClick={editingBarcode ? updateBarcode : createBarcode}
+                    disabled={!formData.barcodeNumber || !formData.itemId}
+                    className={clay.btn.primary + " flex-1 py-2.5 sm:py-3 text-xs sm:text-sm flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"}
                   >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
+                    <Check size={14} className="sm:w-4 sm:h-4" />
+                    {editingBarcode ? "Update Barcode" : "Create Barcode"}
+                  </button>
+                  <button
+                    onClick={closeModal}
+                    className={clay.btn.secondary + " flex-1 py-2.5 sm:py-3 text-xs sm:text-sm"}
+                  >
+                    Cancel
+                  </button>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
-                  <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#a3e635] transition"
-                    placeholder="Additional notes about this barcode..."
-                  />
-                </div>
-
-                {formData.itemId && (
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <p className="text-xs text-gray-500">Selected Item:</p>
-                    <p className="text-sm font-semibold text-gray-900">{formData.itemName}</p>
-                    <p className="text-sm font-bold text-green-600">₹{formData.price}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="p-6 border-t border-gray-100 flex gap-3">
-                <button
-                  onClick={editingBarcode ? updateBarcode : createBarcode}
-                  disabled={!formData.barcodeNumber || !formData.itemId}
-                  className="flex-1 bg-[#a3e635] text-gray-900 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#bef264] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Check size={16} />
-                  {editingBarcode ? "Update Barcode" : "Create Barcode"}
-                </button>
-                <button
-                  onClick={closeModal}
-                  className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-200 transition"
-                >
-                  Cancel
-                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -902,153 +986,156 @@ export default function BarcodeManagement({ storeId }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-sm overflow-y-auto"
             onClick={closeBulkModal}
           >
             <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              className="w-full max-w-[calc(100%-1.5rem)] sm:max-w-4xl mx-auto max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Bulk Import Barcodes</h2>
-                  <p className="text-sm text-gray-500 mt-1">Import multiple barcodes using CSV file</p>
-                </div>
-                <button onClick={closeBulkModal} className="text-gray-400 hover:text-gray-600">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-6">
-                {/* Instructions */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <FileText size={20} className="text-blue-600 mt-0.5" />
-                    <div>
-                      <h3 className="text-sm font-semibold text-blue-900 mb-1">Instructions</h3>
-                      <ul className="text-xs text-blue-800 space-y-1">
-                        <li>• CSV file must have headers: <strong>barcode, itemName, price, status, notes</strong></li>
-                        <li>• <strong>barcode</strong> - Unique barcode number (required)</li>
-                        <li>• <strong>itemName</strong> - Must match existing menu item names exactly (required)</li>
-                        <li>• <strong>price</strong> - Numeric value (required)</li>
-                        <li>• <strong>status</strong> - "active" or "inactive" (optional, defaults to active)</li>
-                        <li>• <strong>notes</strong> - Additional information (optional)</li>
-                      </ul>
-                    </div>
+              <div className={clay.modal + " overflow-hidden"}>
+                <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-3 sm:px-6 sm:py-4 flex justify-between items-center">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">Bulk Import Barcodes</h2>
+                    <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5">Import multiple barcodes using CSV file</p>
                   </div>
-                </div>
-
-                {/* Download Template */}
-                <div>
-                  <button
-                    onClick={downloadTemplate}
-                    className="text-[#a3e635] hover:text-[#bef264] text-sm font-medium flex items-center gap-2"
-                  >
-                    <Download size={16} />
-                    Download Sample CSV Template
+                  <button onClick={closeBulkModal} className="bg-gray-100 text-gray-600 rounded-xl w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center shadow-[0_2px_0_#d1d5db] active:translate-y-[1px] transition-all flex-shrink-0">
+                    <X size={14} className="sm:w-4 sm:h-4" />
                   </button>
                 </div>
 
-                {/* File Upload */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload CSV File</label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#a3e635] transition">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept=".csv"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      id="csvUpload"
-                    />
-                    <label
-                      htmlFor="csvUpload"
-                      className="cursor-pointer flex flex-col items-center gap-2"
-                    >
-                      <Upload size={32} className="text-gray-400" />
-                      <span className="text-sm text-gray-600">Click to upload CSV file</span>
-                      <span className="text-xs text-gray-400">or drag and drop</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Preview Section */}
-                {bulkPreview.length > 0 && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                      Preview ({bulkPreview.length} items)
-                    </h3>
-                    <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                      <table className="w-full text-sm">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Barcode</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Item Name</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Price</th>
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {bulkPreview.slice(0, 5).map((item, idx) => (
-                            <tr key={idx}>
-                              <td className="px-3 py-2 font-mono text-xs">{item.barcodeNumber}</td>
-                              <td className="px-3 py-2">{item.itemName}</td>
-                              <td className="px-3 py-2">₹{item.price}</td>
-                              <td className="px-3 py-2">
-                                <span className={`px-2 py-0.5 rounded-full text-xs ${
-                                  item.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
-                                }`}>
-                                  {item.status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                          {bulkPreview.length > 5 && (
-                            <tr>
-                              <td colSpan="4" className="px-3 py-2 text-center text-xs text-gray-500">
-                                and {bulkPreview.length - 5} more items...
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Errors Section */}
-                {bulkErrors.length > 0 && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
+                  {/* Instructions */}
+                  <div className="bg-blue-50 border-2 border-blue-100 rounded-2xl p-4">
                     <div className="flex items-start gap-3">
-                      <AlertCircle size={20} className="text-red-600 mt-0.5" />
+                      <FileText size={20} className="text-blue-600 mt-0.5 flex-shrink-0" />
                       <div>
-                        <h3 className="text-sm font-semibold text-red-900 mb-2">Errors ({bulkErrors.length})</h3>
-                        <ul className="text-xs text-red-800 space-y-1 max-h-32 overflow-y-auto">
-                          {bulkErrors.map((error, idx) => (
-                            <li key={idx}>• {error}</li>
-                          ))}
+                        <h3 className="text-xs sm:text-sm font-bold text-blue-900 mb-1">Instructions</h3>
+                        <ul className="text-[10px] sm:text-xs text-blue-800 space-y-1">
+                          <li>• CSV file must have headers: <strong>barcode, itemName, price, status, notes</strong></li>
+                          <li>• <strong>barcode</strong> - Unique barcode number (required)</li>
+                          <li>• <strong>itemName</strong> - Must match existing menu item names exactly (required)</li>
+                          <li>• <strong>price</strong> - Numeric value (required)</li>
+                          <li>• <strong>status</strong> - "active" or "inactive" (optional, defaults to active)</li>
+                          <li>• <strong>notes</strong> - Additional information (optional)</li>
                         </ul>
                       </div>
                     </div>
                   </div>
-                )}
+
+                  {/* Download Template */}
+                  <div>
+                    <button
+                      onClick={downloadTemplate}
+                      className="text-[#84cc16] hover:text-[#6aaa00] text-xs sm:text-sm font-semibold flex items-center gap-2"
+                    >
+                      <Download size={16} />
+                      Download Sample CSV Template
+                    </button>
+                  </div>
+
+                  {/* File Upload */}
+                  <div>
+                    <label className="block text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Upload CSV File</label>
+                    <div className="border-2 border-dashed border-gray-200 rounded-2xl p-6 text-center hover:border-[#a3e635] transition bg-gray-50">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".csv"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        id="csvUpload"
+                      />
+                      <label
+                        htmlFor="csvUpload"
+                        className="cursor-pointer flex flex-col items-center gap-2"
+                      >
+                        <Upload size={32} className="text-gray-400" />
+                        <span className="text-xs sm:text-sm text-gray-600 font-medium">Click to upload CSV file</span>
+                        <span className="text-[10px] sm:text-xs text-gray-400">or drag and drop</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Preview Section */}
+                  {bulkPreview.length > 0 && (
+                    <div>
+                      <h3 className="text-xs sm:text-sm font-bold text-gray-900 mb-3">
+                        Preview ({bulkPreview.length} items)
+                      </h3>
+                      <div className="overflow-x-auto border-2 border-gray-100 rounded-2xl">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-[10px] sm:text-xs font-bold text-gray-500 uppercase">Barcode</th>
+                              <th className="px-3 py-2 text-left text-[10px] sm:text-xs font-bold text-gray-500 uppercase">Item Name</th>
+                              <th className="px-3 py-2 text-left text-[10px] sm:text-xs font-bold text-gray-500 uppercase">Price</th>
+                              <th className="px-3 py-2 text-left text-[10px] sm:text-xs font-bold text-gray-500 uppercase">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {bulkPreview.slice(0, 5).map((item, idx) => (
+                              <tr key={idx}>
+                                <td className="px-3 py-2 font-mono text-xs">{item.barcodeNumber}</td>
+                                <td className="px-3 py-2 text-xs sm:text-sm">{item.itemName}</td>
+                                <td className="px-3 py-2 text-xs sm:text-sm">₹{item.price}</td>
+                                <td className="px-3 py-2">
+                                  <span className={`px-2 py-0.5 rounded-xl text-[10px] sm:text-xs font-bold ${
+                                    item.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
+                                  }`}>
+                                    {item.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                            {bulkPreview.length > 5 && (
+                              <tr>
+                                <td colSpan="4" className="px-3 py-2 text-center text-[10px] sm:text-xs text-gray-400">
+                                  and {bulkPreview.length - 5} more items...
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Errors Section */}
+                  {bulkErrors.length > 0 && (
+                    <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle size={20} className="text-red-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h3 className="text-xs sm:text-sm font-bold text-red-900 mb-2">Errors ({bulkErrors.length})</h3>
+                          <ul className="text-[10px] sm:text-xs text-red-800 space-y-1 max-h-32 overflow-y-auto">
+                            {bulkErrors.map((error, idx) => (
+                              <li key={idx}>• {error}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 pt-4">
+                <div className="p-4 sm:p-6 border-t-2 border-gray-100 flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={handleBulkImport}
                     disabled={bulkPreview.length === 0}
-                    className="flex-1 bg-[#a3e635] text-gray-900 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#bef264] transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={clay.btn.primary + " flex-1 py-2.5 sm:py-3 text-xs sm:text-sm flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"}
                   >
-                    <Upload size={16} />
+                    <Upload size={14} className="sm:w-4 sm:h-4" />
                     Import {bulkPreview.length} Barcodes
                   </button>
                   <button
                     onClick={closeBulkModal}
-                    className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg text-sm font-semibold hover:bg-gray-200 transition"
+                    className={clay.btn.secondary + " flex-1 py-2.5 sm:py-3 text-xs sm:text-sm"}
                   >
                     Cancel
                   </button>
