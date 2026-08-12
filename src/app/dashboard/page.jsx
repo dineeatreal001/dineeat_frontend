@@ -207,12 +207,7 @@ export default function DashboardPage() {
                   >
                     Live Tracking
                   </button>
-                  <button
-                    onClick={() => router.push("/dashboard/pos")}
-                    className={clay.btn.primary + " px-5 py-2.5"}
-                  >
-                    View POS
-                  </button>
+                
                 </div>
               </div>
             </div>
