@@ -137,15 +137,14 @@ const handleSubmit = async (e) => {
           className="text-center mb-8"
         >
           <Link href="/" className="inline-flex items-center gap-2 text-2xl font-bold text-white tracking-tight no-underline">
-            <motion.div 
-              className="w-10 h-10 rounded-xl bg-[#a3e635] flex items-center justify-center text-xl shadow-lg"
-              whileHover={{ rotate: 90 }}
-              transition={{ duration: 0.3 }}
-            >
-              🍽️
-            </motion.div>
-            DineEat
-          </Link>
+  <motion.div 
+    className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-lg overflow-hidden"
+    transition={{ duration: 0.3 }}
+  >
+    <img src="/logo.jpeg" alt="DineEat Logo" className="w-full h-full object-cover" />
+  </motion.div>
+  DineEat
+</Link>
           <p className="text-white/50 text-sm mt-3">Restaurant billing made effortless.</p>
         </motion.div>
 

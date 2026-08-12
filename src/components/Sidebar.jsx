@@ -13,7 +13,6 @@ const menuGroups = [
       { id: "orders",             icon: <OrderIcon />,   label: "Orders",             path: "/dashboard/orders" },
       { id: "live-tracking",      icon: <TrackIcon />,   label: "Live Tracking",      path: "/dashboard/live-tracking" },
       { id: "table-reservations", icon: <TableIcon />,   label: "Table Reservations", path: "/dashboard/table-reservations" },
-      { id: "pos",                icon: <PosIcon />,     label: "POS",                path: "/dashboard/pos" },
       { id: "sales-report",       icon: <SalesIcon />,   label: "Sales Report",       path: "/dashboard/sales-report" },
     ],
   },
@@ -25,6 +24,7 @@ const menuGroups = [
       { id: "staff",     icon: <StaffIcon />,    label: "Staff",     path: "/dashboard/staff" },
       { id: "qr-menu",   icon: <QrIcon />,       label: "QR Menu",   path: "/dashboard/qr-menu" },
       { id: "settings",  icon: <SettingsIcon />, label: "Settings",  path: "/dashboard/settings" },
+      { id: "downloads", icon: <DownloadIcon />, label: "Downloads", path: "/dashboard/downloads" },
     ],
   },
 ];
@@ -66,18 +66,6 @@ function TableIcon() {
       <path d="M5 12v1M8 12v1.5M11 12v1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
       <path d="M1.5 8h13" stroke="currentColor" strokeWidth="1.2"/>
       <path d="M6 8V4M10 8V4" stroke="currentColor" strokeWidth="1" strokeDasharray="1.5 1"/>
-    </svg>
-  );
-}
-function PosIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect x="1.5" y="2" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
-      <path d="M4.5 14h7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-      <path d="M8 12v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-      <rect x="4" y="5" width="2" height="2" rx=".5" fill="currentColor" opacity=".7"/>
-      <rect x="7" y="5" width="2" height="2" rx=".5" fill="currentColor" opacity=".7"/>
-      <rect x="10" y="5" width="2" height="2" rx=".5" fill="currentColor" opacity=".7"/>
     </svg>
   );
 }
@@ -138,6 +126,13 @@ function SalesIcon() {
       <circle cx="8" cy="7" r="1" fill="currentColor" opacity="0.5"/>
       <circle cx="13" cy="5" r="1" fill="currentColor" opacity="0.5"/>
       <circle cx="2" cy="12" r="1" fill="currentColor" opacity="0.5"/>
+    </svg>
+  );
+}
+function DownloadIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M3 11v2h10v-2M8 3v6m-2.5-2L8 10l2.5-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -252,33 +247,34 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           }}
         >
           {/* Logo mark */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, overflow: "hidden", minWidth: 0 }}>
-            <motion.div
-              whileHover={{ translateY: -2, boxShadow: "0 6px 0 #14532d, 0 8px 20px rgba(74,222,128,0.35)" }}
-              whileTap={{ translateY: 3, boxShadow: "0 1px 0 #14532d" }}
-              style={{
-                width: 34, height: 34, flexShrink: 0,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "all 0.15s",
-                ...clayLogo,
-              }}
-            >
-              <span style={{ fontSize: 17, lineHeight: 1 }}>🍽️</span>
-            </motion.div>
+<div style={{ display: "flex", alignItems: "center", gap: 10, overflow: "hidden", minWidth: 0 }}>
+  <motion.div
+    whileHover={{ translateY: -2, boxShadow: "0 6px 0 #14532d, 0 8px 20px rgba(74,222,128,0.35)" }}
+    whileTap={{ translateY: 3, boxShadow: "0 1px 0 #14532d" }}
+    style={{
+      width: 34, height: 34, flexShrink: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      transition: "all 0.15s",
+      overflow: "hidden",
+      ...clayLogo,
+    }}
+  >
+    <img src="/logo.jpeg" alt="DineEat Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+  </motion.div>
 
-            <motion.div
-              animate={{ opacity: sidebarOpen ? 1 : 0, width: sidebarOpen ? "auto" : 0 }}
-              transition={{ duration: 0.22, ease: "easeInOut" }}
-              style={{ overflow: "hidden", whiteSpace: "nowrap" }}
-            >
-              <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: "0.01em", display: "block", lineHeight: 1.2 }}>
-                DineEat
-              </span>
-              <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", letterSpacing: "0.12em" }}>
-                ADMIN PORTAL
-              </span>
-            </motion.div>
-          </div>
+  <motion.div
+    animate={{ opacity: sidebarOpen ? 1 : 0, width: sidebarOpen ? "auto" : 0 }}
+    transition={{ duration: 0.22, ease: "easeInOut" }}
+    style={{ overflow: "hidden", whiteSpace: "nowrap" }}
+  >
+    <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: "0.01em", display: "block", lineHeight: 1.2 }}>
+      DineEat
+    </span>
+    <span style={{ fontSize: 9.5, color: "rgba(255,255,255,0.28)", letterSpacing: "0.12em" }}>
+      ADMIN PORTAL
+    </span>
+  </motion.div>
+</div>
 
           {/* Collapse button — desktop only, visible when open */}
           {!isMobile && sidebarOpen && (
@@ -370,6 +366,70 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
 
         {/* ── Bottom user / logout ─────────────────────────────── */}
         <div style={{ flexShrink: 0 }}>
+          {/* Upgrade Card - Glass morphism with gradient */}
+          {sidebarOpen ? (
+            <motion.div
+              whileHover={{ translateY: -1, boxShadow: "0 6px 0 rgba(74,222,128,0.2), 0 8px 24px rgba(74,222,128,0.12)" }}
+              whileTap={{ translateY: 2, boxShadow: "0 1px 0 rgba(74,222,128,0.1)" }}
+              onClick={() => router.push("/dashboard/upgrade")}
+              style={{
+                margin: "0 12px 8px 12px",
+                padding: "12px 14px",
+                cursor: "pointer",
+                background: "linear-gradient(135deg, rgba(74,222,128,0.12) 0%, rgba(22,163,74,0.08) 100%)",
+                backdropFilter: "blur(12px)",
+                border: "1px solid rgba(74,222,128,0.15)",
+                borderRadius: 14,
+                boxShadow: "0 2px 0 rgba(74,222,128,0.15), 0 4px 16px rgba(74,222,128,0.06)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                transition: "all 0.15s",
+              }}
+            >
+              <div style={{
+                width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
+                background: "linear-gradient(135deg, #4ade80, #16a34a)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 13,
+              }}>
+                ⭐
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", lineHeight: 1.3, margin: 0 }}>
+                  Upgrade Now
+                </p>
+                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", margin: 0, lineHeight: 1.2 }}>
+                  Get premium features
+                </p>
+              </div>
+              <span style={{ color: "rgba(74,222,128,0.5)", fontSize: 16, lineHeight: 1 }}>→</span>
+            </motion.div>
+          ) : (
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+              <Link href="/dashboard/upgrade">
+                <motion.div
+                  whileHover={{ translateY: -2, boxShadow: "0 5px 0 rgba(74,222,128,0.2), 0 8px 18px rgba(74,222,128,0.15)" }}
+                  whileTap={{ translateY: 2, boxShadow: "0 1px 0 rgba(74,222,128,0.1)" }}
+                  title="Upgrade"
+                  style={{
+                    width: 34, height: 34, borderRadius: "50%",
+                    background: "linear-gradient(135deg, rgba(74,222,128,0.15), rgba(22,163,74,0.10))",
+                    backdropFilter: "blur(12px)",
+                    border: "1px solid rgba(74,222,128,0.15)",
+                    boxShadow: "0 2px 0 rgba(74,222,128,0.12), 0 4px 12px rgba(74,222,128,0.06)",
+                    color: "#4ade80",
+                    fontSize: 13,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", transition: "all 0.15s",
+                  }}
+                >
+                  ⭐
+                </motion.div>
+              </Link>
+            </div>
+          )}
+
           <div style={{ height: 1, background: "rgba(255,255,255,0.055)", margin: "0 14px" }} />
           <div style={{ padding: 12 }}>
             {sidebarOpen ? (
@@ -440,13 +500,12 @@ function NavItem({ item, isActive, sidebarOpen }) {
         position: "relative",
         display: "flex", alignItems: "center",
         height: 40, marginBottom: 4,
-        // ← Extra left padding only when expanded so the bar has room to peek out
         padding: sidebarOpen ? "0 12px 0 16px" : "0",
         justifyContent: sidebarOpen ? "flex-start" : "center",
         gap: 10,
         cursor: "pointer",
         userSelect: "none",
-        overflow: "visible", /* ← critical: lets the bar render outside the card bounds */
+        overflow: "visible",
         ...(isActive ? {
           ...clayNavActive,
           ...(hovered ? {
@@ -462,7 +521,6 @@ function NavItem({ item, isActive, sidebarOpen }) {
         transition: "background 0.15s, box-shadow 0.15s, transform 0.15s",
       }}
     >
-
       {/* Icon */}
       <span style={{
         color: isActive ? "#4ade80" : hovered ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.38)",

@@ -220,57 +220,57 @@ export default function DineEatLanding() {
         className={`fixed top-0 left-0 right-0 backdrop-blur-sm z-[100] transition-all duration-300 px-10 ${scrolled ? "bg-[#141b05]/40" : "bg-[#141b05]/10"}`}
       >
         <div className="max-w-[1200px] mx-auto h-16 flex items-center justify-between">
-          {/* Logo */}
-          <motion.a 
-            href="#" 
-            className="flex items-center gap-2 text-xl font-bold text-white tracking-tight no-underline"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <motion.div 
-              className="w-8 h-8 rounded-lg bg-[#f2ffdd] flex items-center justify-center text-base"
-              whileHover={{ rotate: 90 }}
-              transition={{ duration: 0.3 }}
-            >
-              🍽️
-            </motion.div>
-            DineEat
-          </motion.a>
+  {/* Logo */}
+  <motion.a 
+    href="#" 
+    className="flex items-center gap-2 text-xl font-bold text-white tracking-tight no-underline"
+    whileHover={{ scale: 1.05 }}
+    whileTap={{ scale: 0.95 }}
+  >
+    <motion.div 
+      className="w-8 h-8 rounded-lg flex items-center justify-center text-base overflow-hidden"
+      whileHover={{ rotate: 90 }}
+      transition={{ duration: 0.3 }}
+    >
+      <img src="/logo.jpeg" alt="DineEat Logo" className="w-full h-full object-cover" />
+    </motion.div>
+    DineEat
+  </motion.a>
 
-          {/* Links – hidden on mobile */}
-          <ul className="hidden md:flex gap-2 list-none items-center">
-            {[["Products","products"],["Pricing","pricing"],["Company","company"],["Resources","resources"]].map(([label, href]) => (
-              <motion.li 
-                key={label}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <a href={`#${href}`} className="text-white/75 font-medium text-sm px-3.5 py-1.5 rounded-lg hover:text-white hover:bg-white/[0.08] transition-all no-underline">
-                  {label}
-                </a>
-              </motion.li>
-            ))}
-          </ul>
+  {/* Links – hidden on mobile */}
+  <ul className="hidden md:flex gap-2 list-none items-center">
+    {[["Products","products"],["Pricing","pricing"],["Company","company"],["Resources","resources"]].map(([label, href]) => (
+      <motion.li 
+        key={label}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <a href={`#${href}`} className="text-white/75 font-medium text-sm px-3.5 py-1.5 rounded-lg hover:text-white hover:bg-white/[0.08] transition-all no-underline">
+          {label}
+        </a>
+      </motion.li>
+    ))}
+  </ul>
 
-          {/* CTAs */}
-          <div className="flex gap-2.5 items-center">
-            <motion.button 
-              whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.08)" }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-transparent border border-white/30 text-white px-5 py-2 rounded-full text-sm font-semibold cursor-pointer transition-all"
-              onClick={()=> {router.push("/login")}}
-            >
-              Log in
-            </motion.button>
-            <motion.button 
-              whileHover={{ scale: 1.05, backgroundColor: "#bef264", y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-[#f7ffea] text-[#0d2010] border-none px-[22px] py-[9px] rounded-full text-sm font-bold cursor-pointer transition-all"
-            >
-              Get Started →
-            </motion.button>
-          </div>
-        </div>
+  {/* CTAs */}
+  <div className="flex gap-2.5 items-center">
+    <motion.button 
+      whileHover={{ scale: 1.05, backgroundColor: "rgba(255,255,255,0.08)" }}
+      whileTap={{ scale: 0.95 }}
+      className="bg-transparent border border-white/30 text-white px-5 py-2 rounded-full text-sm font-semibold cursor-pointer transition-all"
+      onClick={()=> {router.push("/login")}}
+    >
+      Log in
+    </motion.button>
+    <motion.button 
+      whileHover={{ scale: 1.05, y: -2 }}
+      whileTap={{ scale: 0.95 }}
+      className="border border-white/30 text-white px-[22px] py-[9px] rounded-full text-sm font-bold cursor-pointer transition-all hover:bg-white/[0.08]"
+    >
+      Get Started →
+    </motion.button>
+  </div>
+</div>
       </motion.nav>
 
       {/* ════════════════════════════════════════
@@ -1285,30 +1285,28 @@ export default function DineEatLanding() {
             className="grid grid-cols-2 md:grid-cols-[2fr_1fr_1fr_1fr] gap-10 mb-12"
           >
             {/* Brand */}
-            <div>
-              <a href="#" className="flex items-center gap-2 text-xl font-bold text-white no-underline">
-                <motion.div 
-                  className="w-8 h-8 rounded-lg bg-[#a3e635] flex items-center justify-center text-base"
-                  whileHover={{ rotate: 90 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  🍽️
-                </motion.div>
-                DineEat
-              </a>
-              <p className="text-[13px] text-[#4b5563] leading-relaxed max-w-[260px] mt-3">The all-in-one restaurant management platform for modern food businesses across India.</p>
-              <div className="flex gap-2 mt-4">
-                {["𝕏","in","f","▶"].map(s => (
-                  <motion.div 
-                    key={s} 
-                    whileHover={{ scale: 1.1, backgroundColor: "#1a3820" }}
-                    className="w-[34px] h-[34px] rounded-lg bg-[#0f2d1a] text-[#a3e635] flex items-center justify-center text-[13px] font-bold cursor-pointer transition-colors"
-                  >
-                    {s}
-                  </motion.div>
-                ))}
-              </div>
-            </div>
+           <div>
+  <a href="#" className="flex items-center gap-2 text-xl font-bold text-white no-underline">
+    <motion.div 
+      className="w-8 h-8 rounded-lg flex items-center justify-center text-base overflow-hidden"
+    >
+      <img src="/logo.jpeg" alt="DineEat Logo" className="w-full h-full object-cover" />
+    </motion.div>
+    DineEat
+  </a>
+  <p className="text-[13px] text-[#4b5563] leading-relaxed max-w-[260px] mt-3">The all-in-one restaurant management platform for modern food businesses across India.</p>
+  <div className="flex gap-2 mt-4">
+    {["𝕏","in","f","▶"].map(s => (
+      <motion.div 
+        key={s} 
+        whileHover={{ scale: 1.1 }}
+        className="w-[34px] h-[34px] rounded-lg border border-white/20 text-[#a3e635] flex items-center justify-center text-[13px] font-bold cursor-pointer transition-colors hover:bg-white/[0.08]"
+      >
+        {s}
+      </motion.div>
+    ))}
+  </div>
+</div>
             {/* Link columns */}
             {[
               { title:"Product",  links:["Features","Pricing","Integrations","Changelog","Roadmap"] },
