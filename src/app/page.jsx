@@ -232,7 +232,7 @@ export default function DineEatLanding() {
       whileHover={{ rotate: 90 }}
       transition={{ duration: 0.3 }}
     >
-      <img src="/logo.jpeg" alt="DineEat Logo" className="w-full h-full object-cover" />
+      <img src="/logo.png" alt="DineEat Logo" className="w-full h-full object-cover" />
     </motion.div>
     DineEat
   </motion.a>
@@ -1290,7 +1290,7 @@ export default function DineEatLanding() {
     <motion.div 
       className="w-8 h-8 rounded-lg flex items-center justify-center text-base overflow-hidden"
     >
-      <img src="/logo.jpeg" alt="DineEat Logo" className="w-full h-full object-cover" />
+      <img src="/logo.png" alt="DineEat Logo" className="w-full h-full object-cover" />
     </motion.div>
     DineEat
   </a>

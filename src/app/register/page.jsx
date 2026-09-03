@@ -130,7 +130,7 @@ export default function RegisterPage() {
     className="w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-lg overflow-hidden"
     transition={{ duration: 0.3 }}
   >
-    <img src="/logo.jpeg" alt="DineEat Logo" className="w-full h-full object-cover" />
+    <img src="/logo.png" alt="DineEat Logo" className="w-full h-full object-cover" />
   </motion.div>
   DineEat
 </Link>

@@ -259,7 +259,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       ...clayLogo,
     }}
   >
-    <img src="/logo.jpeg" alt="DineEat Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+    <img src="/logo.png" alt="DineEat Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
   </motion.div>
 
   <motion.div
