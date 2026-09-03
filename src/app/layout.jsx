@@ -1,4 +1,5 @@
 // app/layout.js (Server Component)
+
 import { Archivo } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "./ClientLayout";
@@ -14,15 +15,41 @@ export const metadata = {
     default: "DineEat",
     template: "%s | DineEat",
   },
+
   description: "Restaurant management system for modern food businesses",
-  keywords: "restaurant management, POS, billing, inventory, reservations",
-  authors: [{ name: "DineEat" }],
-  viewport: "width=device-width, initial-scale=1",
+
+  keywords: [
+    "restaurant management",
+    "POS",
+    "billing",
+    "inventory",
+    "reservations",
+  ],
+
+  authors: [
+    {
+      name: "DineEat",
+    },
+  ],
+
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${archivo.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${archivo.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <ClientLayout>{children}</ClientLayout>
