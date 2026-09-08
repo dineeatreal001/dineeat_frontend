@@ -403,6 +403,8 @@ export default function OrdersPage() {
     getStoreIdFromStorage();
   }, []);
 
+  const [allOrders, setAllOrders] = useState([]);
+
   const fetchOrders = async () => {
     if (!storeId) {
       setLoading(false);
@@ -413,10 +415,7 @@ export default function OrdersPage() {
     try {
       const params = new URLSearchParams();
       params.append('storeId', storeId);
-      if (activeOrderType !== 'all') params.append('orderType', activeOrderType);
-      if (activeStatus !== 'all') params.append('status', activeStatus);
-      if (searchTerm) params.append('search', searchTerm);
-      params.append('limit', 100);
+      params.append('limit', 500);
       
       const response = await axios.get(`${API_URL}/api/admin-orders/?${params.toString()}`);
       if (response.data.success) {
@@ -424,10 +423,7 @@ export default function OrdersPage() {
           ...order,
           calculatedTotal: calculateOrderTotal(order.items)
         }));
-        setOrders(ordersWithTotal);
-        
-        const totalRevenue = ordersWithTotal.reduce((sum, order) => sum + order.calculatedTotal, 0);
-        setStats(prev => ({ ...prev, totalRevenue }));
+        setAllOrders(ordersWithTotal);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -461,7 +457,33 @@ export default function OrdersPage() {
       fetchOrders();
       fetchStats();
     }
-  }, [storeId, activeOrderType, activeStatus, searchTerm]);
+  }, [storeId]);
+
+  useEffect(() => {
+    let filtered = allOrders;
+
+    if (activeOrderType !== 'all') {
+      filtered = filtered.filter(o => (o.mode || o.orderType) === activeOrderType);
+    }
+
+    if (activeStatus !== 'all') {
+      filtered = filtered.filter(o => o.status === activeStatus);
+    }
+
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(o =>
+        (o.customer || '').toLowerCase().includes(term) ||
+        (o.phone || '').toLowerCase().includes(term) ||
+        (o.orderNumber || o.billNumber || '').toLowerCase().includes(term)
+      );
+    }
+
+    setOrders(filtered);
+
+    const totalRevenue = filtered.reduce((sum, order) => sum + order.calculatedTotal, 0);
+    setStats(prev => ({ ...prev, totalRevenue }));
+  }, [allOrders, activeOrderType, activeStatus, searchTerm]);
 
   const generateSummaryData = (filter) => {
     let filteredOrders = [...orders];
@@ -799,7 +821,9 @@ export default function OrdersPage() {
         status: newStatus
       });
       if (response.data.success) {
-        fetchOrders();
+        setAllOrders(prev =>
+          prev.map(o => o._id === orderId ? { ...o, status: newStatus } : o)
+        );
         fetchStats();
         alert(`Order status updated to ${newStatus}`);
       }

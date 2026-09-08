@@ -117,7 +117,17 @@ export default function DashboardPage() {
   const [selectedHotel, setSelectedHotel] = useState("all");
   const [timeRange, setTimeRange] = useState("monthly");
   const [isLoading, setIsLoading] = useState(true);
+  const [companyName, setCompanyName] = useState("Admin");
+  const [greeting, setGreeting] = useState("Hello");
+  const [currentDate, setCurrentDate] = useState("");
   const router = useRouter();
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
 
   useEffect(() => {
     const checkAuth = () => {
@@ -132,6 +142,26 @@ export default function DashboardPage() {
       try {
         const decoded = jwt.decode(token);
         if (decoded && decoded.exp > Date.now() / 1000) {
+          const storeDataStr = localStorage.getItem("storeData");
+          if (storeDataStr) {
+            try {
+              const storeData = JSON.parse(storeDataStr);
+              setCompanyName(storeData.companyName || "Admin");
+            } catch (e) {
+              console.error("Error parsing storeData:", e);
+            }
+          }
+
+          setGreeting(getGreeting());
+          setCurrentDate(
+            new Date().toLocaleDateString("en-IN", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }).toUpperCase()
+          );
+
           setIsLoading(false);
         } else {
           localStorage.removeItem("chaosstoredineeat");
@@ -194,8 +224,8 @@ export default function DashboardPage() {
               <div className="absolute right-20 -bottom-20 w-40 h-40 rounded-full bg-emerald-500/5" />
               <div className="relative z-10 flex justify-between items-center flex-wrap gap-4">
                 <div>
-                  <p className="text-emerald-400 text-xs font-mono tracking-wider mb-2">WEDNESDAY, 27 MAY 2026</p>
-                  <h1 className="text-2xl font-bold text-white mb-2">Good morning, Admin! 👋</h1>
+                  <p className="text-emerald-400 text-xs font-mono tracking-wider mb-2">{currentDate}</p>
+                  <h1 className="text-2xl font-bold text-white mb-2">{greeting}, {companyName}! 👋</h1>
                   <p className="text-gray-300 text-sm">
                     You have <span className="text-[#a3e635] font-semibold">5 new orders</span> and <span className="text-[#a3e635] font-semibold">2 alerts</span> to review today.
                   </p>

@@ -59,7 +59,7 @@ const clayDropdown = {
   borderRadius: 18,
   boxShadow: "0 8px 0 rgba(0,0,0,0.3), 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03)",
   overflow: "hidden",
-  zIndex: 50,
+  zIndex: 100,
 };
 
 const clayProfileBtn = (active) => ({
@@ -172,7 +172,18 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, storeData }) {
     weekday: "long", day: "numeric", month: "short", year: "numeric",
   });
 
-  const hotelName = storeData?.companyName || storeData?.name || "DineEat";
+  const [localStoreData, setLocalStoreData] = useState(null);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("storeData");
+      if (stored) setLocalStoreData(JSON.parse(stored));
+    } catch (e) {
+      console.error("Error parsing storeData:", e);
+    }
+  }, []);
+
+  const hotelName = storeData?.companyName || storeData?.name || localStoreData?.companyName || localStoreData?.name || "DineEat";
   const userRole  = "Admin";
 
   const filteredSuggestions = searchQuery.trim()
@@ -219,7 +230,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen, storeData }) {
       animate={{ left: W_SIDEBAR }}
       transition={{ type: "spring", stiffness: 280, damping: 32, mass: 0.9 }}
       style={{
-        position: "fixed", right: 0, top: 0, zIndex: 10,
+        position: "fixed", right: 0, top: 0, zIndex: 50,
         display: "flex", alignItems: "center",
         height: 64,
         background: "linear-gradient(90deg, #0f1923 0%, #0d1520 100%)",

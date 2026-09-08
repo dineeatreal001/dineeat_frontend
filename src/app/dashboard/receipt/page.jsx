@@ -85,7 +85,7 @@ export default function ReceiptsPage() {
     return null;
   };
 
-  // Fetch receipts
+  // Fetch receipts (from the bills route)
   const fetchReceipts = async () => {
     const currentStoreId = getStoreIdFromStorage();
     if (!currentStoreId) return;
@@ -95,12 +95,11 @@ export default function ReceiptsPage() {
     try {
       const params = new URLSearchParams();
       params.append('storeId', currentStoreId);
-      if (searchTerm) params.append('search', searchTerm);
-      if (selectedOrderType !== 'All') params.append('mode', selectedOrderType);
-      
-      const response = await axios.get(`${API_URL}/api/receipts/?${params.toString()}`);
+      params.append('limit', 500);
+
+      const response = await axios.get(`${API_URL}/api/admin-orders/?${params.toString()}`);
       if (response.data.success) {
-        setReceipts(response.data.receipts);
+        setReceipts(response.data.orders);
       }
     } catch (error) {
       console.error("Error fetching receipts:", error);
@@ -110,21 +109,21 @@ export default function ReceiptsPage() {
     }
   };
 
-  // Fetch stats
+  // Fetch stats (from the bills route)
   const fetchStats = async () => {
     const currentStoreId = getStoreIdFromStorage();
     if (!currentStoreId) return;
 
     try {
-      const response = await axios.get(`${API_URL}/api/receipts/stats/${currentStoreId}`);
+      const response = await axios.get(`${API_URL}/api/admin-orders/stats/${currentStoreId}`);
       if (response.data.success) {
         const statsData = response.data.stats;
         setStats({
           total: statsData.total || 0,
           totalAmount: 0,
           dineIn: statsData.dineIn || 0,
-          pickup: statsData.pickup || 0,
-          quickBill: statsData.quickBill || 0
+          pickup: statsData.takeaway || 0,
+          quickBill: 0
         });
       }
     } catch (error) {
@@ -141,7 +140,7 @@ export default function ReceiptsPage() {
       fetchReceipts();
       fetchStats();
     }
-  }, [storeId, searchTerm, selectedOrderType]);
+  }, [storeId]);
 
   const calculateOrderTotal = (items) => {
     if (!items || items.length === 0) return 0;
@@ -371,7 +370,12 @@ export default function ReceiptsPage() {
     const matchesOrderType = selectedOrderType === "All" || receipt.mode === selectedOrderType;
     const matchesDate = (!dateRange.start || new Date(receipt.createdAt) >= new Date(dateRange.start)) && 
                        (!dateRange.end || new Date(receipt.createdAt) <= new Date(dateRange.end));
-    return matchesOrderType && matchesDate;
+    const term = searchTerm.trim().toLowerCase();
+    const matchesSearch = !term ||
+      (receipt.orderNumber || receipt.billNumber || "").toLowerCase().includes(term) ||
+      (receipt.customer || "").toLowerCase().includes(term) ||
+      (receipt.phone || "").toLowerCase().includes(term);
+    return matchesOrderType && matchesDate && matchesSearch;
   });
 
   const totalAmount = filteredReceipts.reduce((sum, r) => sum + calculateOrderTotal(r.items), 0);

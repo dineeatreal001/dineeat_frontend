@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Edit2, Trash2, X, Check, Search, ChefHat } from "lucide-react";
 import axios from "axios";
+import * as XLSX from 'xlsx';
 
 export default function RecipesManagement({ storeId }) {
   const [recipes, setRecipes] = useState([]);
@@ -12,6 +13,8 @@ export default function RecipesManagement({ storeId }) {
   const [showModal, setShowModal] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [selectedMenuItem, setSelectedMenuItem] = useState("all");
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [summaryData, setSummaryData] = useState(null);
   const [formData, setFormData] = useState({
     menuItemId: "",
     menuItemName: "",
@@ -168,6 +171,163 @@ export default function RecipesManagement({ storeId }) {
     setEditingRecipe(null);
   };
 
+    const generateSummaryData = () => {
+    if (filteredRecipes.length === 0) {
+      alert("No recipes found for the selected filter");
+      return null;
+    }
+
+    const ingredientMap = new Map();
+
+    filteredRecipes.forEach(recipe => {
+      (recipe.ingredients || []).forEach(ing => {
+        const key = `${ing.itemName}__${ing.unit}`;
+        const amount = ing.quantity * ing.cost;
+        if (ingredientMap.has(key)) {
+          const existing = ingredientMap.get(key);
+          existing.quantity += ing.quantity;
+          existing.amount += amount;
+        } else {
+          ingredientMap.set(key, {
+            name: ing.itemName,
+            unit: ing.unit,
+            quantity: ing.quantity,
+            amount,
+          });
+        }
+      });
+    });
+
+    const ingredientRows = [...ingredientMap.values()];
+    const totalIngredientCost = ingredientRows.reduce((s, i) => s + i.amount, 0);
+    const totalRecipeCost = filteredRecipes.reduce((s, r) => s + (r.totalCost || 0), 0);
+    const filterLabel = selectedMenuItem === "all"
+      ? "All Menu Items"
+      : menuItems.find(m => m._id === selectedMenuItem)?.name || "Selected Item";
+    const dateStr = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const timeStr = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+
+    return {
+      filterLabel,
+      filteredRecipes,
+      ingredientRows,
+      totalIngredientCost,
+      totalRecipeCost,
+      dateStr,
+      timeStr,
+    };
+  };
+
+  const handleGenerateReport = () => {
+    const data = generateSummaryData();
+    if (data) {
+      setSummaryData(data);
+      setShowSummaryModal(true);
+    }
+  };
+
+  const handlePrintReport = () => {
+    if (!summaryData) return;
+    const { filterLabel, filteredRecipes, ingredientRows, totalIngredientCost, totalRecipeCost, dateStr, timeStr } = summaryData;
+
+    const recipeRows = filteredRecipes.map(r => `
+      <tr>
+        <td style="padding: 4px 0;">${r.menuItemName}</td>
+        <td style="text-align: center; padding: 4px 0;">${r.yieldQuantity} ${r.yieldUnit}(s)</td>
+        <td style="text-align: right; padding: 4px 0;">₹${(r.totalCost || 0).toLocaleString("en-IN")}</td>
+      </tr>
+    `).join("");
+
+    const ingredientTableRows = ingredientRows.map(i => `
+      <tr>
+        <td style="padding: 3px 0;">${i.name}</td>
+        <td style="text-align: center; padding: 3px 0;">${i.quantity} ${i.unit}</td>
+        <td style="text-align: right; padding: 3px 0;">₹${i.amount.toLocaleString("en-IN")}</td>
+      </tr>
+    `).join("");
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Recipe Cost Summary</title>
+          <meta charset="UTF-8">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Courier New', Courier, monospace; padding: 28px 32px; font-size: 13px; color: #111; }
+            .center { text-align: center; }
+            h1 { font-size: 18px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+            .sub { font-size: 12px; color: #444; margin: 2px 0; }
+            .divider-solid { border: none; border-top: 1.5px solid #111; margin: 10px 0; }
+            .divider-dash { border: none; border-top: 1px dashed #aaa; margin: 8px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            th { font-size: 11px; text-transform: uppercase; text-align: left; border-bottom: 1px solid #ccc; padding: 4px 0; }
+            .grand td { font-size: 15px; font-weight: bold; padding-top: 8px; }
+            .grand td:last-child { text-align: right; }
+          </style>
+        </head>
+        <body>
+          <div class="center">
+            <h1>Recipe Cost Summary</h1>
+            <p class="sub">Filter: ${filterLabel}</p>
+            <p class="sub">Printed: ${dateStr} at ${timeStr}</p>
+          </div>
+          <hr class="divider-dash">
+          <p class="sub" style="font-weight:bold; text-transform:uppercase;">Recipes</p>
+          <table>
+            <thead><tr><th>Menu Item</th><th>Yield</th><th style="text-align:right;">Cost</th></tr></thead>
+            <tbody>${recipeRows}</tbody>
+          </table>
+          <hr class="divider-dash">
+          <p class="sub" style="font-weight:bold; text-transform:uppercase;">Ingredient Breakdown</p>
+          <table>
+            <thead><tr><th>Ingredient</th><th>Qty</th><th style="text-align:right;">Cost</th></tr></thead>
+            <tbody>${ingredientTableRows}</tbody>
+          </table>
+          <hr class="divider-solid">
+          <table>
+            <tr class="grand"><td>Total Ingredient Cost</td><td style="text-align:right;">₹${totalIngredientCost.toLocaleString("en-IN")}</td></tr>
+            <tr class="grand"><td>Total Recipe Cost</td><td style="text-align:right;">₹${totalRecipeCost.toLocaleString("en-IN")}</td></tr>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const win = window.open("", "_blank", "width=600,height=800");
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => win.print(), 400);
+  };
+
+  const handleExportToExcel = () => {
+    if (!summaryData) return;
+    const { filterLabel, filteredRecipes, ingredientRows, totalIngredientCost, totalRecipeCost } = summaryData;
+
+    const excelData = [];
+    excelData.push(['Recipe Cost Summary']);
+    excelData.push([filterLabel]);
+    excelData.push([]);
+    excelData.push(['Recipes']);
+    excelData.push(['Menu Item', 'Yield', 'Cost (₹)']);
+    filteredRecipes.forEach(r => {
+      excelData.push([r.menuItemName, `${r.yieldQuantity} ${r.yieldUnit}(s)`, r.totalCost || 0]);
+    });
+    excelData.push([]);
+    excelData.push(['Ingredient Breakdown']);
+    excelData.push(['Ingredient', 'Quantity', 'Amount (₹)']);
+    ingredientRows.forEach(i => {
+      excelData.push([i.name, `${i.quantity} ${i.unit}`, i.amount]);
+    });
+    excelData.push([]);
+    excelData.push(['Total Ingredient Cost', totalIngredientCost]);
+    excelData.push(['Total Recipe Cost', totalRecipeCost]);
+
+    const ws = XLSX.utils.aoa_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Recipe Summary');
+    XLSX.writeFile(wb, `recipe_cost_summary_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   const filteredRecipes = selectedMenuItem === "all" 
     ? recipes 
     : recipes.filter(r => r.menuItemId === selectedMenuItem);
@@ -188,13 +348,22 @@ export default function RecipesManagement({ storeId }) {
             <h1 className="text-2xl font-semibold text-gray-900">Recipe Management</h1>
             <p className="text-gray-500 text-sm mt-1">Define ingredients and quantities for each menu item</p>
           </div>
-          <button
-            onClick={() => openModal()}
-            className="bg-[#a3e635] text-gray-900 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#bef264] transition flex items-center gap-2"
-          >
-            <Plus size={16} />
-            Create Recipe
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleGenerateReport}
+              disabled={filteredRecipes.length === 0}
+              className="bg-white text-gray-700 border border-gray-200 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-50 transition flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              🖨️ Print Summary
+            </button>
+            <button
+              onClick={() => openModal()}
+              className="bg-[#a3e635] text-gray-900 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#bef264] transition flex items-center gap-2"
+            >
+              <Plus size={16} />
+              Create Recipe
+            </button>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
@@ -459,6 +628,71 @@ export default function RecipesManagement({ storeId }) {
           </motion.div>
         )}
       </AnimatePresence>
+            {/* Summary Preview Modal */}
+      <AnimatePresence>
+        {showSummaryModal && summaryData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+            onClick={() => setShowSummaryModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Recipe Cost Summary</h2>
+                  <p className="text-sm text-gray-500 mt-0.5">{summaryData.filterLabel}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleExportToExcel} className="bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-semibold">📊 Export Excel</button>
+                  <button onClick={handlePrintReport} className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold">🖨️ Print</button>
+                  <button onClick={() => setShowSummaryModal(false)} className="text-gray-400 hover:text-gray-600 px-2"><X size={20} /></button>
+                </div>
+              </div>
+              <div className="p-6">
+                <table className="min-w-full mb-6">
+                  <thead>
+                    <tr className="border-b-2 border-gray-100">
+                      <th className="text-left text-xs font-bold text-gray-400 uppercase py-2">Menu Item</th>
+                      <th className="text-center text-xs font-bold text-gray-400 uppercase py-2">Yield</th>
+                      <th className="text-right text-xs font-bold text-gray-400 uppercase py-2">Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summaryData.filteredRecipes.map(r => (
+                      <tr key={r._id} className="border-b border-gray-50">
+                        <td className="py-2 text-sm">{r.menuItemName}</td>
+                        <td className="py-2 text-sm text-center">{r.yieldQuantity} {r.yieldUnit}(s)</td>
+                        <td className="py-2 text-sm text-right font-medium">₹{(r.totalCost || 0).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="flex justify-end">
+                  <div className="w-64 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Total Ingredient Cost</span>
+                      <span className="font-semibold">₹{summaryData.totalIngredientCost.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-base font-bold">
+                      <span>Total Recipe Cost</span>
+                      <span className="text-green-600">₹{summaryData.totalRecipeCost.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
     </>
   );
 }

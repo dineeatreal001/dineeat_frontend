@@ -36,7 +36,7 @@ const downloadItems = [
     features: ["Offline Mode", "Invoice Generation", "Inventory Sync", "Multi-device Support"],
     version: "v3.2.1",
     size: "24.5 MB",
-    platform: "Windows, macOS, Android"
+    platform: "Windows, Android"
   },
   {
     id: "owner-reporting",
@@ -46,7 +46,7 @@ const downloadItems = [
     features: ["Sales Analytics", "Revenue Reports", "Guest Insights", "Performance Metrics"],
     version: "v2.1.0",
     size: "18.2 MB",
-    platform: "Web, iOS, Android"
+    platform: "Web,  Android"
   },
   {
     id: "captain-app",
@@ -56,7 +56,7 @@ const downloadItems = [
     features: ["Table Management", "Order Tracking", "Staff Scheduling", "Real-time Updates"],
     version: "v1.8.3",
     size: "12.7 MB",
-    platform: "iOS, Android"
+    platform: "Android"
   }
 ];
 
