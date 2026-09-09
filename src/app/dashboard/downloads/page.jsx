@@ -35,8 +35,9 @@ const downloadItems = [
     description: "Complete point of sale system for hotel operations including billing, inventory, and order management",
     features: ["Offline Mode", "Invoice Generation", "Inventory Sync", "Multi-device Support"],
     version: "v3.2.1",
-    size: "24.5 MB",
-    platform: "Windows, Android"
+    size: "400 MB",
+    platform: "Windows, Android",
+    downloadUrl: `${process.env.NEXT_PUBLIC_API_URL}/api/download/pos`
   },
   {
     id: "owner-reporting",
@@ -46,7 +47,8 @@ const downloadItems = [
     features: ["Sales Analytics", "Revenue Reports", "Guest Insights", "Performance Metrics"],
     version: "v2.1.0",
     size: "18.2 MB",
-    platform: "Web,  Android"
+    platform: "Web,  Android",
+    downloadUrl: null
   },
   {
     id: "captain-app",
@@ -56,14 +58,14 @@ const downloadItems = [
     features: ["Table Management", "Order Tracking", "Staff Scheduling", "Real-time Updates"],
     version: "v1.8.3",
     size: "12.7 MB",
-    platform: "Android"
+    platform: "Android",
+    downloadUrl: null
   }
 ];
 
 export default function DownloadsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [selectedHotel, setSelectedHotel] = useState("all");
-  const [downloading, setDownloading] = useState(null);
 
   const handleDownload = (id) => {
     setDownloading(id);
@@ -151,29 +153,15 @@ export default function DownloadsPage() {
                     </div>
                   </div>
 
-                  {/* Download Button */}
-                  <button
-                    onClick={() => handleDownload(item.id)}
-                    disabled={downloading === item.id}
-                    className={`${clay.btn.primary} w-full py-3 text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+                  
+                    <a href={item.downloadUrl || undefined}
+                    className={`${clay.btn.primary} w-full py-3 text-sm flex items-center justify-center gap-2 ${!item.downloadUrl ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
                   >
-                    {downloading === item.id ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        Downloading...
-                      </>
-                    ) : (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                          <path d="M3 11v2h10v-2M8 3v6m-2.5-2L8 10l2.5-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                        Download Now
-                      </>
-                    )}
-                  </button>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 11v2h10v-2M8 3v6m-2.5-2L8 10l2.5-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    {item.downloadUrl ? "Download Now" : "Coming Soon"}
+                  </a>
                 </div>
               </motion.div>
             ))}
